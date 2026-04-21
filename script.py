@@ -3,20 +3,25 @@ import os
 import time
 from datetime import datetime
 
-API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2"
-HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
+# ✅ FIXED MODEL (IMPORTANT CHANGE)
+API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+
+HEADERS = {
+    "Authorization": f"Bearer {os.getenv('HF_API_KEY')}",
+    "Content-Type": "application/json"
+}
 
 
 def generate_image(prompt):
     response = requests.post(API_URL, headers=HEADERS, json={"inputs": prompt})
 
-    # Handle model loading (VERY IMPORTANT)
+    # ⏳ Model loading (first time)
     if response.status_code == 503:
         print("⏳ Model loading... waiting 10 seconds")
         time.sleep(10)
         return generate_image(prompt)
 
-    # Handle errors
+    # ❌ Error handling
     if response.status_code != 200:
         print(f"❌ Error: {response.status_code}")
         print(response.text)
@@ -25,24 +30,24 @@ def generate_image(prompt):
     return response.content
 
 
-# Create folder
+# 📁 Create folder
 today = datetime.now().strftime("%Y-%m-%d")
 output_dir = f"images/{today}"
 os.makedirs(output_dir, exist_ok=True)
 
-# Load prompts
+# 📄 Load prompts
 with open("prompts.txt", "r") as f:
     prompts = [p.strip() for p in f if p.strip()]
 
 print(f"Loaded {len(prompts)} prompts")
 
+# 🔁 Generate images
 for i, prompt in enumerate(prompts):
     try:
         print(f"🎨 Generating {i+1}: {prompt}")
 
         image = generate_image(prompt)
 
-        # Skip if failed
         if image is None:
             print("⚠️ Skipping image due to error")
             continue
@@ -54,7 +59,7 @@ for i, prompt in enumerate(prompts):
 
         print(f"✅ Saved: {filename}")
 
-        time.sleep(5)  # avoid rate limits
+        time.sleep(5)
 
     except Exception as e:
         print("❌ Exception:", e)
