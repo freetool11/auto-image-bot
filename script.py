@@ -6,9 +6,24 @@ from datetime import datetime
 API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2"
 HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
 
+
 def generate_image(prompt):
     response = requests.post(API_URL, headers=HEADERS, json={"inputs": prompt})
+
+    # Handle model loading (VERY IMPORTANT)
+    if response.status_code == 503:
+        print("⏳ Model loading... waiting 10 seconds")
+        time.sleep(10)
+        return generate_image(prompt)
+
+    # Handle errors
+    if response.status_code != 200:
+        print(f"❌ Error: {response.status_code}")
+        print(response.text)
+        return None
+
     return response.content
+
 
 # Create folder
 today = datetime.now().strftime("%Y-%m-%d")
@@ -19,17 +34,30 @@ os.makedirs(output_dir, exist_ok=True)
 with open("prompts.txt", "r") as f:
     prompts = [p.strip() for p in f if p.strip()]
 
+print(f"Loaded {len(prompts)} prompts")
+
 for i, prompt in enumerate(prompts):
     try:
-        print(f"Generating {i+1}: {prompt}")
+        print(f"🎨 Generating {i+1}: {prompt}")
 
         image = generate_image(prompt)
 
-        with open(f"{output_dir}/img_{i+1}.png", "wb") as f:
+        # Skip if failed
+        if image is None:
+            print("⚠️ Skipping image due to error")
+            continue
+
+        filename = f"{output_dir}/img_{i+1}.png"
+
+        with open(filename, "wb") as f:
             f.write(image)
 
-        time.sleep(5)
+        print(f"✅ Saved: {filename}")
+
+        time.sleep(5)  # avoid rate limits
 
     except Exception as e:
-        print("Error:", e)
+        print("❌ Exception:", e)
         time.sleep(10)
+
+print("🎉 Done generating images")
