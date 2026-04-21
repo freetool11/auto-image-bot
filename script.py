@@ -1,40 +1,35 @@
-import google.generativeai as genai
-import time
+import requests
 import os
-from PIL import Image
-from io import BytesIO
+import time
 from datetime import datetime
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2"
+HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
 
-model = genai.GenerativeModel("gemini-pro-vision")
+def generate_image(prompt):
+    response = requests.post(API_URL, headers=HEADERS, json={"inputs": prompt})
+    return response.content
 
-WIDTH = 1024
-HEIGHT = 1024
-
+# Create folder
 today = datetime.now().strftime("%Y-%m-%d")
 output_dir = f"images/{today}"
 os.makedirs(output_dir, exist_ok=True)
 
+# Load prompts
 with open("prompts.txt", "r") as f:
     prompts = [p.strip() for p in f if p.strip()]
 
 for i, prompt in enumerate(prompts):
     try:
-        response = model.generate_content(prompt)
+        print(f"Generating {i+1}: {prompt}")
 
-        image_data = response.candidates[0].content.parts[0].inline_data.data
+        image = generate_image(prompt)
 
-        img = Image.open(BytesIO(image_data))
-        img = img.resize((WIDTH, HEIGHT))
+        with open(f"{output_dir}/img_{i+1}.png", "wb") as f:
+            f.write(image)
 
-        filename = f"{output_dir}/img_{i+1}.png"
-        img.save(filename)
-
-        print("Saved:", filename)
-
-        time.sleep(6)
+        time.sleep(5)
 
     except Exception as e:
         print("Error:", e)
-        time.sleep(20)
+        time.sleep(10)
